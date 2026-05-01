@@ -9,7 +9,7 @@ interface Props {
 
 export default function TimerRing({ seconds, onTimeout, paused = false, size = 44 }: Props) {
   const [remaining, setRemaining] = useState(seconds);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setRemaining(seconds);
@@ -21,7 +21,7 @@ export default function TimerRing({ seconds, onTimeout, paused = false, size = 4
     intervalRef.current = setInterval(() => {
       setRemaining((prev) => {
         if (prev <= 1) {
-          clearInterval(intervalRef.current);
+          if (intervalRef.current) clearInterval(intervalRef.current);
           onTimeout();
           return 0;
         }
@@ -29,7 +29,9 @@ export default function TimerRing({ seconds, onTimeout, paused = false, size = 4
       });
     }, 1000);
 
-    return () => clearInterval(intervalRef.current);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [paused, remaining <= 0]);
 
   const radius = (size - 6) / 2;

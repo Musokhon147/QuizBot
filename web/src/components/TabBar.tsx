@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { haptic } from "../lib/api.ts";
@@ -9,7 +10,7 @@ interface Props {
   onChange: (tab: Tab) => void;
 }
 
-const tabs: { id: Tab; icon: (active: boolean) => JSX.Element }[] = [
+const tabs: { id: Tab; icon: (active: boolean) => ReactElement }[] = [
   {
     id: "home",
     icon: (a) => (

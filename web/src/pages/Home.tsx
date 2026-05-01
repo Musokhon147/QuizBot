@@ -15,18 +15,21 @@ const mockTests: TestListItem[] = [
     title: "Biology: Cell Structure & Function",
     created_at: new Date(Date.now() - 86400000).toISOString(),
     questions: [{ count: 15 }],
+    category: null,
   },
   {
     id: "demo-2",
     title: "World History: Industrial Revolution",
     created_at: new Date(Date.now() - 172800000).toISOString(),
     questions: [{ count: 20 }],
+    category: null,
   },
   {
     id: "demo-3",
     title: "Mathematics: Linear Algebra",
     created_at: new Date(Date.now() - 345600000).toISOString(),
     questions: [{ count: 12 }],
+    category: null,
   },
 ];
 
