@@ -93,6 +93,17 @@ export async function getUserTests(telegramUserId) {
   return data;
 }
 
+export async function getAllTests(limit = 100) {
+  const { data, error } = await supabase
+    .from("tests")
+    .select("id, title, category, created_at, questions(count), users(name, username)")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return data;
+}
+
 export async function saveResult(testId, telegramUserId, score, totalQuestions, answers, durationMs = 0) {
   await ensureUser(telegramUserId);
   const timePerQ = totalQuestions > 0 ? Math.round(durationMs / totalQuestions) : 0;

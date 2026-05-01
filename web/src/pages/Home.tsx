@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { fetchUserTests, haptic, type TgUser, type TestListItem } from "../lib/api.ts";
+import { fetchAllTests, haptic, type TgUser, type TestListItem } from "../lib/api.ts";
 import { useStore } from "../store/index.ts";
 
 interface Props {
@@ -62,14 +62,14 @@ export default function Home({ user, onStartQuiz }: Props) {
   const avgScore = store.getAvgScore();
 
   useEffect(() => {
-    fetchUserTests(user.id.toString())
+    fetchAllTests(100)
       .then((data) => setTests(data))
       .catch((err) => {
         console.error("Failed to load tests:", err);
         setTests([]);
       })
       .finally(() => setLoading(false));
-  }, [user.id]);
+  }, []);
 
   return (
     <div className="px-5 pt-8 pb-6 max-w-lg mx-auto min-h-screen">
@@ -178,7 +178,7 @@ export default function Home({ user, onStartQuiz }: Props) {
                     <h3 className="font-semibold text-foreground text-[15px] leading-snug truncate group-hover:text-accent-light transition-colors">
                       {test.title}
                     </h3>
-                    <div className="flex items-center gap-2 mt-1.5">
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                       <span className="text-xs text-muted font-medium">
                         {test.questions?.[0]?.count || "?"} questions
                       </span>
@@ -189,6 +189,14 @@ export default function Home({ user, onStartQuiz }: Props) {
                           day: "numeric",
                         })}
                       </span>
+                      {test.users?.name && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-muted/30" />
+                          <span className="text-xs text-muted truncate">
+                            by {test.users.name}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="mt-1 text-muted group-hover:text-accent-light transition-colors">

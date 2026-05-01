@@ -25,6 +25,7 @@ export interface TestListItem {
   category: string | null;
   created_at: string;
   questions: { count: number }[];
+  users?: { name: string | null; username: string | null } | null;
 }
 
 export interface ResultDetail {
@@ -88,6 +89,10 @@ export function fetchTest(testId: string): Promise<Test> {
 
 export function fetchUserTests(telegramUserId: string): Promise<TestListItem[]> {
   return jsonFetch(`${API_URL}/tests/user/${telegramUserId}`);
+}
+
+export function fetchAllTests(limit = 100): Promise<TestListItem[]> {
+  return jsonFetch(`${API_URL}/tests/all?limit=${limit}`);
 }
 
 export function submitTest(
