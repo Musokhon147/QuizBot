@@ -190,7 +190,7 @@ export default function App() {
           )}
           {page === "history" && (
             <motion.div key="history" {...pageTransition}>
-              <History onStartQuiz={openTest} />
+              <History user={user} onStartQuiz={openTest} />
             </motion.div>
           )}
           {page === "leaderboard" && (

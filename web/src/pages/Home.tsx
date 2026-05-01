@@ -9,30 +9,6 @@ interface Props {
   onStartQuiz: (id: string) => void;
 }
 
-const mockTests: TestListItem[] = [
-  {
-    id: "demo-1",
-    title: "Biology: Cell Structure & Function",
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-    questions: [{ count: 15 }],
-    category: null,
-  },
-  {
-    id: "demo-2",
-    title: "World History: Industrial Revolution",
-    created_at: new Date(Date.now() - 172800000).toISOString(),
-    questions: [{ count: 20 }],
-    category: null,
-  },
-  {
-    id: "demo-3",
-    title: "Mathematics: Linear Algebra",
-    created_at: new Date(Date.now() - 345600000).toISOString(),
-    questions: [{ count: 12 }],
-    category: null,
-  },
-];
-
 const stagger = {
   hidden: {},
   show: { transition: { staggerChildren: 0.08, delayChildren: 0.2 } },
@@ -87,8 +63,11 @@ export default function Home({ user, onStartQuiz }: Props) {
 
   useEffect(() => {
     fetchUserTests(user.id.toString())
-      .then((data) => setTests(data.length > 0 ? data : mockTests))
-      .catch(() => setTests(mockTests))
+      .then((data) => setTests(data))
+      .catch((err) => {
+        console.error("Failed to load tests:", err);
+        setTests([]);
+      })
       .finally(() => setLoading(false));
   }, [user.id]);
 

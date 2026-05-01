@@ -1,7 +1,13 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { setLanguage } from "../i18n/index.ts";
-import { haptic, type TgUser } from "../lib/api.ts";
+import {
+  fetchStreak,
+  fetchLeaderboard,
+  haptic,
+  type TgUser,
+} from "../lib/api.ts";
 import { useStore } from "../store/index.ts";
 
 interface Props {
@@ -18,11 +24,32 @@ export default function Profile({ user }: Props) {
   const { t, i18n } = useTranslation();
   const store = useStore();
 
-  const streak = store.getStreak();
-  const avgScore = store.getAvgScore();
-  const totalCorrect = store.getTotalCorrect();
-  const totalAttempts = store.attempts.length;
-  const isDark = store.theme === "dark";
+  const [streak, setStreak] = useState(0);
+  const [stats, setStats] = useState({
+    avgPct: 0,
+    totalCorrect: 0,
+    attempts: 0,
+  });
+
+  useEffect(() => {
+    const userId = user.id.toString();
+    fetchStreak(userId)
+      .then((d) => setStreak(d.streak))
+      .catch((err) => console.error("streak fetch failed:", err));
+
+    fetchLeaderboard(50)
+      .then((board) => {
+        const me = board.find((e) => e.telegram_id === userId);
+        if (me) {
+          setStats({
+            avgPct: me.avg_pct ?? 0,
+            totalCorrect: me.total_correct ?? 0,
+            attempts: me.attempts ?? 0,
+          });
+        }
+      })
+      .catch((err) => console.error("leaderboard fetch failed:", err));
+  }, [user.id]);
 
   return (
     <div className="px-5 pt-8 pb-24 max-w-lg mx-auto min-h-screen">
@@ -48,9 +75,9 @@ export default function Profile({ user }: Props) {
       >
         {[
           { label: "Streak", value: `${streak}d`, icon: "\u{1F525}" },
-          { label: t("leaderboard.accuracy"), value: `${avgScore}%`, icon: "\u{1F3AF}" },
-          { label: t("common.correct"), value: totalCorrect.toString(), icon: "✅" },
-          { label: t("leaderboard.attempts"), value: totalAttempts.toString(), icon: "\u{1F4CA}" },
+          { label: t("leaderboard.accuracy"), value: `${stats.avgPct}%`, icon: "\u{1F3AF}" },
+          { label: t("common.correct"), value: stats.totalCorrect.toString(), icon: "✅" },
+          { label: t("leaderboard.attempts"), value: stats.attempts.toString(), icon: "\u{1F4CA}" },
         ].map((stat, i) => (
           <div key={i} className="card rounded-2xl p-4 text-center">
             <span className="text-xl block mb-1">{stat.icon}</span>

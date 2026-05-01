@@ -1,13 +1,38 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { useStore, type AttemptRecord } from "../store/index.ts";
+import type { TgUser } from "../lib/api.ts";
+
+interface ServerAttempt {
+  id: string;
+  test_id: string;
+  score: number;
+  total_questions: number;
+  created_at: string;
+  duration_ms: number;
+  tests: { title: string } | null;
+}
+
+interface UiAttempt {
+  id: string;
+  testId: string;
+  testTitle: string;
+  score: number;
+  total: number;
+  percentage: number;
+  date: string;
+  durationMs: number;
+}
 
 interface Props {
+  user: TgUser;
   onStartQuiz: (id: string) => void;
 }
 
-function groupByDate(attempts: AttemptRecord[]): Record<string, AttemptRecord[]> {
-  const groups: Record<string, AttemptRecord[]> = {};
+const API_URL = import.meta.env.VITE_API_URL || "/api";
+
+function groupByDate(attempts: UiAttempt[]): Record<string, UiAttempt[]> {
+  const groups: Record<string, UiAttempt[]> = {};
   for (const a of attempts) {
     const key = new Date(a.date).toDateString();
     if (!groups[key]) groups[key] = [];
@@ -34,9 +59,40 @@ function getScoreColor(pct: number): string {
   return "text-coral";
 }
 
-export default function History({ onStartQuiz }: Props) {
+export default function History({ user, onStartQuiz }: Props) {
   const { t } = useTranslation();
-  const { attempts } = useStore();
+  const [attempts, setAttempts] = useState<UiAttempt[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API_URL}/tests/results/${user.id}`)
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load history");
+        return r.json();
+      })
+      .then((data: ServerAttempt[]) => {
+        const mapped: UiAttempt[] = (data || []).map((a) => ({
+          id: a.id,
+          testId: a.test_id,
+          testTitle: a.tests?.title ?? "Untitled test",
+          score: a.score,
+          total: a.total_questions,
+          percentage:
+            a.total_questions > 0
+              ? Math.round((a.score / a.total_questions) * 100)
+              : 0,
+          date: a.created_at,
+          durationMs: a.duration_ms ?? 0,
+        }));
+        setAttempts(mapped);
+      })
+      .catch((err) => {
+        console.error("history fetch failed:", err);
+        setAttempts([]);
+      })
+      .finally(() => setLoading(false));
+  }, [user.id]);
+
   const grouped = groupByDate(attempts);
   const dateKeys = Object.keys(grouped);
 
@@ -50,7 +106,12 @@ export default function History({ onStartQuiz }: Props) {
         <h1 className="text-xl font-bold text-foreground">{t("history.title")}</h1>
       </motion.div>
 
-      {attempts.length === 0 ? (
+      {loading ? (
+        <div className="flex flex-col items-center py-16 gap-3">
+          <div className="w-10 h-10 rounded-full border-[3px] border-accent/30 border-t-accent animate-spin" />
+          <p className="text-muted text-sm">Loading history...</p>
+        </div>
+      ) : attempts.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -78,7 +139,7 @@ export default function History({ onStartQuiz }: Props) {
                 {getDateLabel(dateKey, t)}
               </p>
               <div className="space-y-2">
-                {grouped[dateKey].map((attempt, i) => (
+                {grouped[dateKey].map((attempt) => (
                   <button
                     key={attempt.id}
                     onClick={() => onStartQuiz(attempt.testId)}
