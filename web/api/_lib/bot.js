@@ -16,11 +16,12 @@ const messages = {
       "Mini app ni ochish uchun pastdagi tugmani bosing.",
     welcomeAdmin:
       "TestBot — admin paneliga xush kelibsiz!\n\n" +
-      "Test yaratish uchun:\n" +
-      "1. PDF yoki DOCX fayl yuboring\n" +
-      "2. Agar PDF da javoblar bo'lsa (Javob: qatorlari) — bot ulardan foydalanadi\n" +
-      "3. Agar javoblar yo'q bo'lsa — AI o'zi to'g'ri javob va variantlarni topadi\n" +
-      "4. Test barcha foydalanuvchilarga ko'rinadi",
+      "Test yaratish uchun PDF yoki DOCX fayl yuboring.\n\n" +
+      "Fayl formati:\n" +
+      "• Raqamlangan savollar (1. 2. 3. ...)\n" +
+      "• Har bir savol ostida `Javob: ...` qatori, yoki\n" +
+      "• A/B/C/D variantlari (to'g'ri javob ✓ belgisi bilan)\n\n" +
+      "Test barcha foydalanuvchilarga ko'rinadi.",
     openTests: "Testlarni ochish",
     processing: "PDF qayta ishlanmoqda... Biroz kuting.",
     extracting: "Matn chiqarilmoqda...",
@@ -33,6 +34,11 @@ const messages = {
     tooLarge: "Fayl juda katta. Maksimal o'lcham 10MB.",
     noText: "Fayldan matn chiqarib bo'lmadi. Matn asosli (text-based) faylni yuboring.",
     noQuestions: "Faylda savol topilmadi. Raqamlangan savollar bo'lishi kerak.",
+    noAnswers:
+      "Faylda javoblar topilmadi. Test yaratish uchun har bir savol ostida `Javob: ...` qatori yoki A/B/C/D variantlari (✓ belgisi bilan to'g'ri javob) bo'lishi kerak.\n\n" +
+      "Misol:\n" +
+      "1. Savol matni?\n" +
+      "Javob: To'g'ri javob.",
     aiGenerating: "AI savollar uchun variantlar va to'g'ri javoblarni yaratmoqda... Bu 1-2 daqiqa olishi mumkin.",
     error: "Faylni qayta ishlashda xatolik yuz berdi. Qayta urinib ko'ring.",
     adminOnly:
@@ -51,11 +57,12 @@ const messages = {
       "Нажмите кнопку ниже чтобы открыть мини-приложение.",
     welcomeAdmin:
       "TestBot — добро пожаловать в админ-панель!\n\n" +
-      "Чтобы создать тест:\n" +
-      "1. Отправьте PDF или DOCX файл\n" +
-      "2. Если в файле есть ответы (строки Ответ:) — бот их использует\n" +
-      "3. Если ответов нет — AI сам найдёт правильный ответ и сгенерирует варианты\n" +
-      "4. Тест увидят все пользователи",
+      "Чтобы создать тест, отправьте PDF или DOCX файл.\n\n" +
+      "Формат файла:\n" +
+      "• Пронумерованные вопросы (1. 2. 3. ...)\n" +
+      "• Под каждым вопросом строка `Ответ: ...`, или\n" +
+      "• Варианты A/B/C/D (правильный отмечен ✓)\n\n" +
+      "Тест увидят все пользователи.",
     openTests: "Открыть тесты",
     processing: "Обработка PDF... Подождите.",
     extracting: "Извлечение текста...",
@@ -68,6 +75,11 @@ const messages = {
     tooLarge: "Файл слишком большой. Максимум 10МБ.",
     noText: "Не удалось извлечь текст из файла. Отправьте текстовый файл.",
     noQuestions: "В файле не найдено вопросов. Должны быть пронумерованные вопросы.",
+    noAnswers:
+      "В файле не найдено ответов. Чтобы создать тест, под каждым вопросом должна быть строка `Ответ: ...` или варианты A/B/C/D (с ✓ у правильного ответа).\n\n" +
+      "Пример:\n" +
+      "1. Текст вопроса?\n" +
+      "Ответ: Правильный ответ.",
     aiGenerating: "AI генерирует варианты и правильные ответы для вопросов... Это может занять 1-2 минуты.",
     error: "Ошибка обработки файла. Попробуйте снова.",
     adminOnly:
@@ -86,11 +98,12 @@ const messages = {
       "Tap the button below to open the mini app.",
     welcomeAdmin:
       "TestBot — welcome to the admin panel!\n\n" +
-      "To create a test:\n" +
-      "1. Send a PDF or DOCX file\n" +
-      "2. If the file has answers (Answer: lines) — the bot uses them directly\n" +
-      "3. If not — the AI finds the correct answer and generates options\n" +
-      "4. All users will see the test",
+      "To create a test, send a PDF or DOCX file.\n\n" +
+      "File format:\n" +
+      "• Numbered questions (1. 2. 3. ...)\n" +
+      "• Under each question, an `Answer: ...` line, or\n" +
+      "• A/B/C/D options (correct one marked with ✓)\n\n" +
+      "All users will see the test.",
     openTests: "Open Tests",
     processing: "Processing your PDF...",
     extracting: "Extracting text from PDF...",
@@ -103,6 +116,11 @@ const messages = {
     tooLarge: "File is too large. Maximum size is 10MB.",
     noText: "Could not extract text from this file. Please send a text-based file.",
     noQuestions: "No questions found. The file should contain numbered questions.",
+    noAnswers:
+      "No answers found in the file. To create a test, each question needs either an `Answer: ...` line under it or A/B/C/D options (with ✓ marking the correct one).\n\n" +
+      "Example:\n" +
+      "1. Question text?\n" +
+      "Answer: The correct answer.",
     aiGenerating: "AI is generating options and correct answers for the questions... This may take 1-2 minutes.",
     error: "Something went wrong while processing your file. Please try again.",
     adminOnly:
@@ -232,15 +250,25 @@ export function createBot() {
       // Try the regular parser first (handles A/B/C/D and Q+A formats)
       let parsed = parseQuestionsFromText(text);
 
-      // If no parseable questions, but document has numbered questions,
-      // fall back to AI to generate options + correct answers
+      // If parser didn't find anything, decide whether to fall back to AI.
       if (!parsed.questions.length) {
         const rawQuestions = extractQuestionTexts(text);
+
         if (rawQuestions.length === 0) {
+          // No numbered questions at all
           return ctx.api.editMessageText(
             ctx.chat.id,
             statusMsg.message_id,
             msg.noQuestions
+          );
+        }
+
+        // Numbered questions exist but no answers → need AI
+        if (!process.env.ANTHROPIC_API_KEY) {
+          return ctx.api.editMessageText(
+            ctx.chat.id,
+            statusMsg.message_id,
+            msg.noAnswers
           );
         }
 
