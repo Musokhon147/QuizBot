@@ -1,0 +1,151 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :root,
+  [data-theme="light"] {
+    --color-bg: #f8f9fc;
+    --color-bg-secondary: #ffffff;
+    --color-foreground: #1a1d2e;
+    --color-subtle: #4a5068;
+    --color-muted: #8890a6;
+    --color-card: rgba(255, 255, 255, 0.85);
+    --color-card-border: rgba(0, 0, 0, 0.06);
+    --color-card-hover: rgba(255, 255, 255, 0.95);
+    --color-glass: rgba(0, 0, 0, 0.03);
+    --color-glass-border: rgba(0, 0, 0, 0.06);
+    --color-glass-hover: rgba(0, 0, 0, 0.06);
+    --color-divider: rgba(0, 0, 0, 0.06);
+    --color-nav-bg: rgba(248, 249, 252, 0.85);
+    --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+    --shadow-glow: 0 4px 20px rgba(108, 92, 231, 0.15);
+    --mesh-1: rgba(108, 92, 231, 0.06);
+    --mesh-2: rgba(0, 206, 201, 0.04);
+    --mesh-3: rgba(108, 92, 231, 0.02);
+  }
+
+  [data-theme="dark"] {
+    --color-bg: #0a0e1a;
+    --color-bg-secondary: #141b36;
+    --color-foreground: #e2e8f0;
+    --color-subtle: #b1b7cd;
+    --color-muted: #626f9b;
+    --color-card: rgba(255, 255, 255, 0.04);
+    --color-card-border: rgba(255, 255, 255, 0.06);
+    --color-card-hover: rgba(255, 255, 255, 0.07);
+    --color-glass: rgba(255, 255, 255, 0.06);
+    --color-glass-border: rgba(255, 255, 255, 0.08);
+    --color-glass-hover: rgba(255, 255, 255, 0.12);
+    --color-divider: rgba(255, 255, 255, 0.06);
+    --color-nav-bg: rgba(10, 14, 26, 0.8);
+    --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --shadow-glow: 0 4px 20px rgba(108, 92, 231, 0.3);
+    --mesh-1: rgba(108, 92, 231, 0.15);
+    --mesh-2: rgba(0, 206, 201, 0.1);
+    --mesh-3: rgba(108, 92, 231, 0.05);
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    background-color: var(--color-bg);
+    color: var(--color-foreground);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s, color 0.3s;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(108, 92, 231, 0.3);
+    border-radius: 20px;
+  }
+}
+
+@layer components {
+  .card {
+    background: var(--color-card);
+    border: 1px solid var(--color-card-border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: var(--shadow-card);
+    transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .card-hover {
+    @apply card;
+    transition: all 0.3s;
+  }
+  .card-hover:hover {
+    background: var(--color-card-hover);
+    border-color: rgba(108, 92, 231, 0.3);
+    transform: translateY(-1px);
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 50%, #00cec9 100%);
+  }
+
+  .gradient-border {
+    position: relative;
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.5), rgba(0, 206, 201, 0.3));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .btn-primary {
+    @apply relative overflow-hidden px-6 py-3.5 rounded-2xl font-semibold text-white transition-all duration-300;
+    background: linear-gradient(135deg, #6c5ce7, #4834d4);
+    box-shadow: var(--shadow-glow);
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+  }
+  .btn-primary:active {
+    transform: translateY(0px);
+  }
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn-ghost {
+    @apply px-6 py-3.5 rounded-2xl font-semibold transition-all duration-300;
+    background: var(--color-glass);
+    border: 1px solid var(--color-glass-border);
+    color: var(--color-muted);
+  }
+  .btn-ghost:hover {
+    background: var(--color-glass-hover);
+    color: var(--color-foreground);
+  }
+  .btn-ghost:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
