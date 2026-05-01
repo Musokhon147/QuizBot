@@ -1,8 +1,26 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
+let _client = null;
+function getClient() {
+  if (_client) return _client;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) {
+    throw new Error("SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set");
+  }
+  _client = createClient(url, key);
+  return _client;
+}
+
+const supabase = new Proxy(
+  {},
+  {
+    get(_t, prop) {
+      const client = getClient();
+      const value = client[prop];
+      return typeof value === "function" ? value.bind(client) : value;
+    },
+  }
 );
 
 export async function upsertUser(telegramId, name, username, phone) {
