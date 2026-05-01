@@ -180,6 +180,46 @@ function parseFallback(text) {
   return { title: guessTitle(text, questions.length), questions };
 }
 
+/**
+ * Extract just the question texts from a document, ignoring whether it
+ * has answers or options. Used as the input to AI option-generation when
+ * the file has no answer markers.
+ */
+export function extractQuestionTexts(text) {
+  const lines = text.split("\n").map((l) => l.trim());
+  const questions = [];
+  let current = null;
+
+  const questionStart = /^(\d{1,3})\s*[.)]\s*(.+)/;
+  const optionStart = /^([A-Ea-e])\s*[.)]\s*(.+)/;
+  const answerStart = /^(javob|ja[wv]ob|ответ|otvet|answer|j\s*\.)\s*[:.—–-]?\s*(.*)$/i;
+
+  for (const line of lines) {
+    if (!line) continue;
+    if (answerStart.test(line) || optionStart.test(line)) {
+      // Skip lines that are answers or A/B/C/D options
+      continue;
+    }
+    const qMatch = line.match(questionStart);
+    if (qMatch) {
+      if (current) questions.push(current.trim());
+      current = qMatch[2].trim();
+    } else if (current && line.length > 5) {
+      // Continuation of previous question
+      current += " " + line;
+    }
+  }
+  if (current) questions.push(current.trim());
+
+  return questions
+    .map((q) => q.replace(/\s+/g, " ").trim())
+    .filter((q) => q.length > 5 && q.length < 1000);
+}
+
+export function guessTitleFromText(text, qCount) {
+  return guessTitle(text, qCount);
+}
+
 function guessTitle(text, qCount) {
   const firstLine = text
     .split("\n")

@@ -1,7 +1,13 @@
 import { Bot, InlineKeyboard } from "grammy";
-import { extractTextFromPDF } from "./pdf.js";
-import { parseQuestionsFromText } from "./parser.js";
+import { extractText, SUPPORTED_MIME_TYPES } from "./extract.js";
+import {
+  parseQuestionsFromText,
+  extractQuestionTexts,
+  guessTitleFromText,
+} from "./parser.js";
+import { generateOptionsAndAnswers } from "./ai.js";
 import { saveTest, upsertUser } from "./supabase.js";
+
 
 const messages = {
   uz: {
@@ -11,10 +17,10 @@ const messages = {
     welcomeAdmin:
       "TestBot — admin paneliga xush kelibsiz!\n\n" +
       "Test yaratish uchun:\n" +
-      "1. Savollar va javoblar bilan PDF yuboring\n" +
-      "2. Bot avtomatik test yaratadi\n" +
-      "3. Test barcha foydalanuvchilarga ko'rinadi\n\n" +
-      "PDF formati: raqamlangan savollar va har birining ostida `Javob:` qatori.",
+      "1. PDF yoki DOCX fayl yuboring\n" +
+      "2. Agar PDF da javoblar bo'lsa (Javob: qatorlari) — bot ulardan foydalanadi\n" +
+      "3. Agar javoblar yo'q bo'lsa — AI o'zi to'g'ri javob va variantlarni topadi\n" +
+      "4. Test barcha foydalanuvchilarga ko'rinadi",
     openTests: "Testlarni ochish",
     processing: "PDF qayta ishlanmoqda... Biroz kuting.",
     extracting: "Matn chiqarilmoqda...",
@@ -22,11 +28,13 @@ const messages = {
     testCreated: (title, count) =>
       `Test yaratildi: "${title}"\n${count} ta savol topildi.\n\nBarcha foydalanuvchilar endi ko'ra oladi.`,
     takeTest: "Testni boshlash",
-    pdfOnly: "Iltimos, PDF fayl yuboring.",
+    pdfOnly: "Iltimos, PDF yoki DOCX fayl yuboring.",
+    legacyDoc: "Eski .doc formati qo'llab-quvvatlanmaydi. Iltimos, faylni .docx sifatida saqlang va qayta yuboring.",
     tooLarge: "Fayl juda katta. Maksimal o'lcham 10MB.",
-    noText: "Bu PDF dan matn chiqarib bo'lmadi. Text-based PDF yuboring.",
-    noQuestions: "PDF da savol topilmadi. Raqamlangan savollar va `Javob:` qatorlari bo'lishi kerak.",
-    error: "PDF ni qayta ishlashda xatolik yuz berdi. Qayta urinib ko'ring.",
+    noText: "Fayldan matn chiqarib bo'lmadi. Matn asosli (text-based) faylni yuboring.",
+    noQuestions: "Faylda savol topilmadi. Raqamlangan savollar bo'lishi kerak.",
+    aiGenerating: "AI savollar uchun variantlar va to'g'ri javoblarni yaratmoqda... Bu 1-2 daqiqa olishi mumkin.",
+    error: "Faylni qayta ishlashda xatolik yuz berdi. Qayta urinib ko'ring.",
     adminOnly:
       "Faqat administratorlar test yuklay oladi.\n\n" +
       "Mavjud testlarni yechish uchun /start buyrug'idan foydalaning.",
@@ -44,10 +52,10 @@ const messages = {
     welcomeAdmin:
       "TestBot — добро пожаловать в админ-панель!\n\n" +
       "Чтобы создать тест:\n" +
-      "1. Отправьте PDF с вопросами и ответами\n" +
-      "2. Бот автоматически создаст тест\n" +
-      "3. Тест увидят все пользователи\n\n" +
-      "Формат PDF: пронумерованные вопросы и строка `Ответ:` под каждым.",
+      "1. Отправьте PDF или DOCX файл\n" +
+      "2. Если в файле есть ответы (строки Ответ:) — бот их использует\n" +
+      "3. Если ответов нет — AI сам найдёт правильный ответ и сгенерирует варианты\n" +
+      "4. Тест увидят все пользователи",
     openTests: "Открыть тесты",
     processing: "Обработка PDF... Подождите.",
     extracting: "Извлечение текста...",
@@ -55,11 +63,13 @@ const messages = {
     testCreated: (title, count) =>
       `Тест создан: "${title}"\nНайдено ${count} вопросов.\n\nТеперь его видят все пользователи.`,
     takeTest: "Начать тест",
-    pdfOnly: "Пожалуйста, отправьте PDF файл.",
+    pdfOnly: "Пожалуйста, отправьте PDF или DOCX файл.",
+    legacyDoc: "Старый формат .doc не поддерживается. Сохраните файл как .docx и отправьте снова.",
     tooLarge: "Файл слишком большой. Максимум 10МБ.",
-    noText: "Не удалось извлечь текст из PDF. Отправьте текстовый PDF.",
-    noQuestions: "В PDF не найдено вопросов. Используйте формат с пронумерованными вопросами и строкой `Ответ:`.",
-    error: "Ошибка обработки PDF. Попробуйте снова.",
+    noText: "Не удалось извлечь текст из файла. Отправьте текстовый файл.",
+    noQuestions: "В файле не найдено вопросов. Должны быть пронумерованные вопросы.",
+    aiGenerating: "AI генерирует варианты и правильные ответы для вопросов... Это может занять 1-2 минуты.",
+    error: "Ошибка обработки файла. Попробуйте снова.",
     adminOnly:
       "Только администраторы могут загружать тесты.\n\n" +
       "Чтобы решать тесты, используйте команду /start.",
@@ -77,10 +87,10 @@ const messages = {
     welcomeAdmin:
       "TestBot — welcome to the admin panel!\n\n" +
       "To create a test:\n" +
-      "1. Send a PDF with questions and answers\n" +
-      "2. The bot will create the test automatically\n" +
-      "3. All users will see the test\n\n" +
-      "PDF format: numbered questions with an `Answer:` line under each.",
+      "1. Send a PDF or DOCX file\n" +
+      "2. If the file has answers (Answer: lines) — the bot uses them directly\n" +
+      "3. If not — the AI finds the correct answer and generates options\n" +
+      "4. All users will see the test",
     openTests: "Open Tests",
     processing: "Processing your PDF...",
     extracting: "Extracting text from PDF...",
@@ -88,11 +98,13 @@ const messages = {
     testCreated: (title, count) =>
       `Test created: "${title}"\n${count} questions found.\n\nAll users can now see it.`,
     takeTest: "Take Test",
-    pdfOnly: "Please send a PDF file.",
+    pdfOnly: "Please send a PDF or DOCX file.",
+    legacyDoc: "Legacy .doc format isn't supported. Please save your file as .docx and resend.",
     tooLarge: "File is too large. Maximum size is 10MB.",
-    noText: "Could not extract text from this PDF. Please send a text-based PDF.",
-    noQuestions: "No questions found. Use a PDF with numbered questions and `Answer:` lines.",
-    error: "Something went wrong while processing your PDF. Please try again.",
+    noText: "Could not extract text from this file. Please send a text-based file.",
+    noQuestions: "No questions found. The file should contain numbered questions.",
+    aiGenerating: "AI is generating options and correct answers for the questions... This may take 1-2 minutes.",
+    error: "Something went wrong while processing your file. Please try again.",
     adminOnly:
       "Only administrators can upload tests.\n\n" +
       "To take tests, use the /start command.",
@@ -183,14 +195,23 @@ export function createBot() {
   bot.on("message:document", async (ctx) => {
     const userId = ctx.from.id.toString();
     const msg = getMsg(ctx.from.id);
+    const lang = userLangs.get(ctx.from.id) || "uz";
 
     if (!isAdmin(userId)) {
       return ctx.reply(msg.adminOnly);
     }
 
     const doc = ctx.message.document;
-    if (doc.mime_type !== "application/pdf") return ctx.reply(msg.pdfOnly);
+    const mime = doc.mime_type || "";
+
     if (doc.file_size > 10 * 1024 * 1024) return ctx.reply(msg.tooLarge);
+
+    if (mime === "application/msword") {
+      return ctx.reply(msg.legacyDoc);
+    }
+    if (!SUPPORTED_MIME_TYPES.includes(mime)) {
+      return ctx.reply(msg.pdfOnly);
+    }
 
     const statusMsg = await ctx.reply(msg.processing);
 
@@ -201,15 +222,52 @@ export function createBot() {
       const buffer = Buffer.from(await response.arrayBuffer());
 
       await ctx.api.editMessageText(ctx.chat.id, statusMsg.message_id, msg.extracting);
-      const pdfText = await extractTextFromPDF(buffer);
-      if (!pdfText.trim()) {
+      const text = await extractText(buffer, mime);
+      if (!text.trim()) {
         return ctx.api.editMessageText(ctx.chat.id, statusMsg.message_id, msg.noText);
       }
 
       await ctx.api.editMessageText(ctx.chat.id, statusMsg.message_id, msg.analyzing);
-      const parsed = parseQuestionsFromText(pdfText);
+
+      // Try the regular parser first (handles A/B/C/D and Q+A formats)
+      let parsed = parseQuestionsFromText(text);
+
+      // If no parseable questions, but document has numbered questions,
+      // fall back to AI to generate options + correct answers
       if (!parsed.questions.length) {
-        return ctx.api.editMessageText(ctx.chat.id, statusMsg.message_id, msg.noQuestions);
+        const rawQuestions = extractQuestionTexts(text);
+        if (rawQuestions.length === 0) {
+          return ctx.api.editMessageText(
+            ctx.chat.id,
+            statusMsg.message_id,
+            msg.noQuestions
+          );
+        }
+
+        await ctx.api.editMessageText(
+          ctx.chat.id,
+          statusMsg.message_id,
+          msg.aiGenerating
+        );
+
+        const aiResults = await generateOptionsAndAnswers(rawQuestions, lang);
+        const letters = ["A", "B", "C", "D"];
+        const aiQuestions = rawQuestions.map((q, i) => {
+          const ai = aiResults[i];
+          const opts = ai.options.slice(0, 4);
+          while (opts.length < 4) opts.push("—");
+          return {
+            question: q,
+            options: opts.map((opt, j) => `${letters[j]}) ${opt}`),
+            correctAnswer: letters[ai.correctIndex] || "A",
+            explanation: null,
+          };
+        });
+
+        parsed = {
+          title: guessTitleFromText(text, aiQuestions.length),
+          questions: aiQuestions,
+        };
       }
 
       const test = await saveTest(userId, parsed.title, parsed.questions);
@@ -222,7 +280,7 @@ export function createBot() {
         { reply_markup: new InlineKeyboard().webApp(msg.takeTest, testUrl) }
       );
     } catch (err) {
-      console.error("PDF processing error:", err);
+      console.error("Document processing error:", err);
       await ctx.api.editMessageText(ctx.chat.id, statusMsg.message_id, msg.error);
     }
   });
