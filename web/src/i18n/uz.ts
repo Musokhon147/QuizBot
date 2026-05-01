@@ -44,6 +44,9 @@ export default {
     preparing: "Test tayyorlanmoqda...",
     notFound: "Test topilmadi",
     notFoundHint: "Bu test o'chirilgan yoki link noto'g'ri bo'lishi mumkin",
+    correct: "To'g'ri javob!",
+    wrong: "Noto'g'ri",
+    correctAnswer: "To'g'ri javob",
   },
   config: {
     title: "Test sozlamalari",

@@ -44,6 +44,9 @@ export default {
     preparing: "Подготовка теста...",
     notFound: "Тест не найден",
     notFoundHint: "Тест был удалён или ссылка неверна",
+    correct: "Правильно!",
+    wrong: "Неправильно",
+    correctAnswer: "Правильный ответ",
   },
   config: {
     title: "Настройки теста",

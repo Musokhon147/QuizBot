@@ -44,6 +44,9 @@ export default {
     preparing: "Preparing your test...",
     notFound: "Test not found",
     notFoundHint: "This test may have been removed or the link is invalid",
+    correct: "Correct!",
+    wrong: "Wrong",
+    correctAnswer: "Correct answer",
   },
   config: {
     title: "Test Settings",

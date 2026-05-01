@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect, type ReactElement } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -98,7 +98,13 @@ export default function Quiz({ testId, user, onFinish, timePerQuestion }: Props)
   const answeredCount = Object.keys(answers).length;
 
   const selectAnswer = (letter: string) => {
-    haptic("light");
+    if (answers[current] !== undefined) return; // lock once answered
+    const correctLetter = (question?.correct_answer || "").toUpperCase();
+    if (letter === correctLetter) {
+      haptic("medium");
+    } else {
+      haptic("heavy");
+    }
     setAnswers((prev) => ({ ...prev, [current]: letter }));
   };
 
@@ -227,37 +233,104 @@ export default function Quiz({ testId, user, onFinish, timePerQuestion }: Props)
             {question.options.map((option, i) => {
               const letter = extractLetter(option);
               const text = extractText(option);
-              const isSelected = answers[current] === letter;
-              const color = optionColors[i % optionColors.length];
+              const userAnswer = answers[current];
+              const isAnswered = userAnswer !== undefined;
+              const isSelected = userAnswer === letter;
+              const correctLetter = (question.correct_answer || "").toUpperCase();
+              const isCorrect = letter === correctLetter;
+              const showFeedback = isAnswered;
+
+              // Compute classes based on feedback state
+              let stateClasses = "card border-divider hover:border-glass-hover";
+              let badgeClasses = "bg-glass-light text-subtle";
+              let textClasses = "text-subtle";
+              let iconNode: ReactElement | null = null;
+
+              if (showFeedback) {
+                if (isCorrect) {
+                  stateClasses =
+                    "bg-gradient-to-r from-mint/20 to-mint/5 border-mint/50 ring-2 ring-mint/30";
+                  badgeClasses = "bg-mint text-white shadow-glow";
+                  textClasses = "text-foreground font-medium";
+                  iconNode = (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-mint">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  );
+                } else if (isSelected) {
+                  stateClasses =
+                    "bg-gradient-to-r from-coral/20 to-coral/5 border-coral/50 ring-2 ring-coral/30";
+                  badgeClasses = "bg-coral text-white";
+                  textClasses = "text-foreground font-medium";
+                  iconNode = (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-coral">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  );
+                } else {
+                  stateClasses = "card border-divider opacity-60";
+                }
+              }
 
               return (
                 <motion.button
                   key={`${current}-${i}`}
                   onClick={() => selectAnswer(letter)}
+                  disabled={isAnswered}
                   initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  animate={{ opacity: showFeedback && !isCorrect && !isSelected ? 0.6 : 1, y: 0 }}
                   transition={{ delay: i * 0.06, duration: 0.35 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`w-full text-left rounded-2xl p-4 transition-all duration-200 border ${
-                    isSelected
-                      ? `bg-gradient-to-r ${color.bg} ${color.border} ring-2 ${color.ring}`
-                      : "card border-divider hover:border-glass-hover"
+                  whileTap={!isAnswered ? { scale: 0.98 } : undefined}
+                  className={`w-full text-left rounded-2xl p-4 transition-all duration-300 border ${stateClasses} ${
+                    isAnswered ? "cursor-default" : "cursor-pointer"
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 transition-all ${
-                      isSelected ? "bg-accent text-foreground shadow-glow" : "bg-glass-light text-subtle"
-                    }`}>
+                    <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 transition-all ${badgeClasses}`}>
                       {letter}
                     </span>
-                    <span className={`text-[14px] leading-relaxed pt-1 ${isSelected ? "text-foreground font-medium" : "text-subtle"}`}>
+                    <span className={`text-[14px] leading-relaxed pt-1 flex-1 ${textClasses}`}>
                       {text || option}
                     </span>
+                    {iconNode && (
+                      <motion.div
+                        initial={{ scale: 0, rotate: -90 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                        className="shrink-0 mt-0.5"
+                      >
+                        {iconNode}
+                      </motion.div>
+                    )}
                   </div>
                 </motion.button>
               );
             })}
           </div>
+
+          {/* Feedback banner */}
+          {answers[current] !== undefined && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15, duration: 0.3 }}
+              className={`mt-4 rounded-2xl px-4 py-3 flex items-center gap-2.5 ${
+                answers[current] === (question.correct_answer || "").toUpperCase()
+                  ? "bg-mint/15 border border-mint/30"
+                  : "bg-coral/15 border border-coral/30"
+              }`}
+            >
+              <span className="text-xl">
+                {answers[current] === (question.correct_answer || "").toUpperCase() ? "🎉" : "💡"}
+              </span>
+              <p className="text-sm font-medium text-foreground">
+                {answers[current] === (question.correct_answer || "").toUpperCase()
+                  ? t("quiz.correct") || "Correct!"
+                  : `${t("quiz.wrong") || "Wrong"} — ${t("quiz.correctAnswer") || "Correct answer"}: ${(question.correct_answer || "").toUpperCase()}`}
+              </p>
+            </motion.div>
+          )}
         </motion.div>
       </AnimatePresence>
 
