@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -39,7 +39,9 @@ export default function Quiz({ testId, user, onFinish, timePerQuestion }: Props)
   const [submitting, setSubmitting] = useState(false);
   const [direction, setDirection] = useState(1);
   const [timerKey, setTimerKey] = useState(0);
+  const [showJumpSheet, setShowJumpSheet] = useState(false);
   const startTime = useRef(Date.now());
+  const stripRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetchTest(testId)
@@ -47,6 +49,23 @@ export default function Quiz({ testId, user, onFinish, timePerQuestion }: Props)
       .catch(() => toast.error(t("common.error")))
       .finally(() => setLoading(false));
   }, [testId]);
+
+  // Keep the current question centered in the strip
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    const target = strip.querySelector<HTMLButtonElement>(
+      `[data-strip-index="${current}"]`
+    );
+    if (!target) return;
+    const stripRect = strip.getBoundingClientRect();
+    const tRect = target.getBoundingClientRect();
+    const offset =
+      target.offsetLeft - strip.clientWidth / 2 + target.offsetWidth / 2;
+    strip.scrollTo({ left: offset, behavior: "smooth" });
+    void stripRect;
+    void tRect;
+  }, [current, test]);
 
   if (loading) {
     return (
@@ -242,29 +261,123 @@ export default function Quiz({ testId, user, onFinish, timePerQuestion }: Props)
         </motion.div>
       </AnimatePresence>
 
-      {/* Question dots */}
-      <div className="flex flex-wrap gap-1.5 justify-center mt-6 px-2">
-        {questions.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => {
-              haptic("light");
-              setDirection(i > current ? 1 : -1);
-              setCurrent(i);
-              setTimerKey((k) => k + 1);
-            }}
-            className={`w-7 h-7 rounded-lg text-[11px] font-semibold transition-all duration-200 ${
-              i === current
-                ? "bg-accent text-foreground shadow-glow scale-110"
-                : answers[i] !== undefined
-                  ? "bg-mint/20 text-mint border border-mint/30"
-                  : "bg-glass text-muted border border-divider"
-            }`}
-          >
-            {i + 1}
-          </button>
-        ))}
+      {/* Compact question strip — auto-scrolls to keep current centered */}
+      <div className="mt-6 mb-2 flex items-center gap-2">
+        <button
+          onClick={() => {
+            haptic("light");
+            setShowJumpSheet(true);
+          }}
+          className="shrink-0 w-9 h-9 rounded-xl bg-glass border border-divider flex items-center justify-center text-muted hover:text-foreground transition-colors"
+          aria-label="Jump to question"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+        </button>
+        <div
+          ref={stripRef}
+          className="flex-1 overflow-x-auto scrollbar-hide"
+          style={{ scrollbarWidth: "none" }}
+        >
+          <div className="flex gap-1.5 px-1 py-1">
+            {questions.map((_, i) => (
+              <button
+                key={i}
+                data-strip-index={i}
+                onClick={() => {
+                  haptic("light");
+                  setDirection(i > current ? 1 : -1);
+                  setCurrent(i);
+                  setTimerKey((k) => k + 1);
+                }}
+                className={`shrink-0 w-8 h-8 rounded-lg text-[11px] font-semibold transition-all duration-200 ${
+                  i === current
+                    ? "bg-accent text-white shadow-glow scale-110"
+                    : answers[i] !== undefined
+                      ? "bg-mint/20 text-mint border border-mint/30"
+                      : "bg-glass text-muted border border-divider"
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
+
+      {/* Jump-to-question bottom sheet */}
+      <AnimatePresence>
+        {showJumpSheet && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowJumpSheet(false)}
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className="fixed bottom-0 left-0 right-0 z-50 max-h-[80vh] overflow-y-auto"
+            >
+              <div className="bg-bg border-t border-divider rounded-t-3xl shadow-2xl">
+                <div className="max-w-lg mx-auto px-5 pt-4 pb-8">
+                  <div className="w-10 h-1 rounded-full bg-muted/30 mx-auto mb-4" />
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-foreground">
+                      {t("quiz.question")} {current + 1} / {totalQuestions}
+                    </h3>
+                    <span className="text-xs text-muted">
+                      {answeredCount} {t("quiz.answered")}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-8 gap-2">
+                    {questions.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          haptic("light");
+                          setDirection(i > current ? 1 : -1);
+                          setCurrent(i);
+                          setTimerKey((k) => k + 1);
+                          setShowJumpSheet(false);
+                        }}
+                        className={`aspect-square rounded-lg text-xs font-semibold transition-all ${
+                          i === current
+                            ? "bg-accent text-white shadow-glow"
+                            : answers[i] !== undefined
+                              ? "bg-mint/20 text-mint border border-mint/30"
+                              : "bg-glass text-muted border border-divider"
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-3 mt-5 text-[11px] text-muted">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-accent" /> Current
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-mint/60" /> Answered
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-glass border border-divider" /> Empty
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Bottom nav */}
       <div className="fixed bottom-0 left-0 right-0 z-20">
