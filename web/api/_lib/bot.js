@@ -145,15 +145,32 @@ function webAppUrl() {
   return process.env.WEB_APP_URL || "https://example.vercel.app";
 }
 
-function getAdminIds() {
-  return (process.env.ADMIN_TELEGRAM_IDS || "")
+function parseIdList(envVar) {
+  return (process.env[envVar] || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 }
 
+function getPublicAdminIds() {
+  return parseIdList("ADMIN_TELEGRAM_IDS");
+}
+
+function getPrivateAdminIds() {
+  return parseIdList("PRIVATE_ADMIN_TELEGRAM_IDS");
+}
+
+function isPublicAdmin(userId) {
+  return getPublicAdminIds().includes(userId.toString());
+}
+
+function isPrivateAdmin(userId) {
+  return getPrivateAdminIds().includes(userId.toString());
+}
+
 function isAdmin(userId) {
-  return getAdminIds().includes(userId.toString());
+  // Either kind of admin can upload — the difference is just visibility
+  return isPublicAdmin(userId) || isPrivateAdmin(userId);
 }
 
 export function createBot() {
@@ -298,7 +315,13 @@ export function createBot() {
         };
       }
 
-      const test = await saveTest(userId, parsed.title, parsed.questions);
+      const test = await saveTest(
+        userId,
+        parsed.title,
+        parsed.questions,
+        null,
+        isPrivateAdmin(userId)
+      );
       const testUrl = `${webAppUrl()}?testId=${test.id}`;
 
       await ctx.api.editMessageText(

@@ -62,14 +62,14 @@ export default function Home({ user, onStartQuiz }: Props) {
   const avgScore = store.getAvgScore();
 
   useEffect(() => {
-    fetchAllTests(100)
+    fetchAllTests(100, user.id.toString())
       .then((data) => setTests(data))
       .catch((err) => {
         console.error("Failed to load tests:", err);
         setTests([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [user.id]);
 
   return (
     <div className="px-5 pt-8 pb-6 max-w-lg mx-auto min-h-screen">

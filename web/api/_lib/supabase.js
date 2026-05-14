@@ -43,12 +43,12 @@ export async function upsertUser(telegramId, name, username, phone) {
   return data;
 }
 
-export async function saveTest(telegramUserId, title, questions, category = null) {
+export async function saveTest(telegramUserId, title, questions, category = null, isPrivate = false) {
   await ensureUser(telegramUserId);
 
   const { data: test, error: testError } = await supabase
     .from("tests")
-    .insert({ telegram_user_id: telegramUserId, title, category })
+    .insert({ telegram_user_id: telegramUserId, title, category, private: isPrivate })
     .select()
     .single();
 
@@ -93,13 +93,22 @@ export async function getUserTests(telegramUserId) {
   return data;
 }
 
-export async function getAllTests(limit = 100) {
-  const { data, error } = await supabase
+export async function getAllTests(limit = 100, viewerTelegramId = null) {
+  // Visibility rule: public tests visible to everyone. Private tests visible
+  // only to the uploader. If no viewer is provided, only public tests show.
+  let query = supabase
     .from("tests")
-    .select("id, title, category, created_at, questions(count), users(name, username)")
+    .select("id, title, category, created_at, private, telegram_user_id, questions(count), users(name, username)")
     .order("created_at", { ascending: false })
     .limit(limit);
 
+  if (viewerTelegramId) {
+    query = query.or(`private.eq.false,telegram_user_id.eq.${viewerTelegramId}`);
+  } else {
+    query = query.eq("private", false);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return data;
 }

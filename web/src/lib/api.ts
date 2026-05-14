@@ -91,8 +91,10 @@ export function fetchUserTests(telegramUserId: string): Promise<TestListItem[]> 
   return jsonFetch(`${API_URL}/tests/user/${telegramUserId}`);
 }
 
-export function fetchAllTests(limit = 100): Promise<TestListItem[]> {
-  return jsonFetch(`${API_URL}/tests/all?limit=${limit}`);
+export function fetchAllTests(limit = 100, telegramUserId?: string): Promise<TestListItem[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (telegramUserId) params.set("userId", telegramUserId);
+  return jsonFetch(`${API_URL}/tests/all?${params.toString()}`);
 }
 
 export function submitTest(
