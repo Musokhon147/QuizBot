@@ -6,7 +6,7 @@ import {
   guessTitleFromText,
 } from "./parser.js";
 import { generateOptionsAndAnswers } from "./ai.js";
-import { saveTest, upsertUser } from "./supabase.js";
+import { saveTest, upsertUser, getUserRole } from "./supabase.js";
 
 
 const messages = {
@@ -160,17 +160,40 @@ function getPrivateAdminIds() {
   return parseIdList("PRIVATE_ADMIN_TELEGRAM_IDS");
 }
 
-function isPublicAdmin(userId) {
+function isPublicAdminEnv(userId) {
   return getPublicAdminIds().includes(userId.toString());
 }
 
-function isPrivateAdmin(userId) {
+function isPrivateAdminEnv(userId) {
   return getPrivateAdminIds().includes(userId.toString());
 }
 
-function isAdmin(userId) {
-  // Either kind of admin can upload — the difference is just visibility
-  return isPublicAdmin(userId) || isPrivateAdmin(userId);
+/**
+ * Look up a user's effective role: DB role takes priority, env vars are
+ * the bootstrap fallback so a fresh deploy isn't locked out before any
+ * super-admin has had a chance to seed itself in the DB.
+ */
+async function getEffectiveRole(userId) {
+  let dbRole = "user";
+  try {
+    dbRole = await getUserRole(userId.toString());
+  } catch (e) {
+    console.error("getUserRole failed, falling back to env vars:", e);
+  }
+  if (dbRole !== "user") return dbRole;
+  if (isPrivateAdminEnv(userId)) return "private_admin";
+  if (isPublicAdminEnv(userId)) return "admin";
+  return "user";
+}
+
+async function isAdmin(userId) {
+  const role = await getEffectiveRole(userId);
+  return role === "admin" || role === "private_admin" || role === "super_admin";
+}
+
+async function isPrivateAdmin(userId) {
+  const role = await getEffectiveRole(userId);
+  return role === "private_admin";
 }
 
 export function createBot() {
@@ -193,7 +216,7 @@ export function createBot() {
       console.error("upsertUser error:", e);
     }
 
-    const text = isAdmin(userId) ? msg.welcomeAdmin : msg.welcomeUser;
+    const text = (await isAdmin(userId)) ? msg.welcomeAdmin : msg.welcomeUser;
     await ctx.reply(text, {
       reply_markup: new InlineKeyboard().webApp(msg.openTests, webAppUrl()),
     });
@@ -202,7 +225,8 @@ export function createBot() {
   bot.command("whoami", async (ctx) => {
     const msg = getMsg(ctx.from.id);
     const userId = ctx.from.id.toString();
-    await ctx.reply(msg.whoami(userId, isAdmin(userId)));
+    const role = await getEffectiveRole(userId);
+    await ctx.reply(`${msg.whoami(userId, role !== "user")}\nRole: ${role}`);
   });
 
   bot.command("lang", async (ctx) => {
@@ -232,9 +256,10 @@ export function createBot() {
     const msg = getMsg(ctx.from.id);
     const lang = userLangs.get(ctx.from.id) || "uz";
 
-    if (!isAdmin(userId)) {
+    if (!(await isAdmin(userId))) {
       return ctx.reply(msg.adminOnly);
     }
+    const privateUpload = await isPrivateAdmin(userId);
 
     const doc = ctx.message.document;
     const mime = doc.mime_type || "";
@@ -320,7 +345,7 @@ export function createBot() {
         parsed.title,
         parsed.questions,
         null,
-        isPrivateAdmin(userId)
+        privateUpload
       );
       const testUrl = `${webAppUrl()}?testId=${test.id}`;
 

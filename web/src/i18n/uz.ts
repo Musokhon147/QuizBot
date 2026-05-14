@@ -113,5 +113,6 @@ export default {
     history: "Tarix",
     leaderboard: "Reyting",
     profile: "Profil",
+    admin: "Admin",
   },
 };

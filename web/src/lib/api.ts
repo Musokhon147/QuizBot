@@ -126,6 +126,33 @@ export function toggleBookmark(telegramUserId: string, questionId: string) {
   });
 }
 
+export type UserRole = "user" | "admin" | "private_admin" | "super_admin";
+
+export interface AdminUser {
+  telegram_id: string;
+  name: string | null;
+  username: string | null;
+  role: UserRole;
+  joined_at: string | null;
+  last_active: string | null;
+}
+
+export function fetchMyRole(telegramUserId: string): Promise<{ telegramUserId: string; role: UserRole }> {
+  return jsonFetch(`${API_URL}/admin/me?userId=${encodeURIComponent(telegramUserId)}`);
+}
+
+export function fetchAllAdminUsers(actor: string): Promise<AdminUser[]> {
+  return jsonFetch(`${API_URL}/admin/users?actor=${encodeURIComponent(actor)}`);
+}
+
+export function setUserRoleApi(actor: string, telegramUserId: string, role: UserRole): Promise<AdminUser> {
+  return jsonFetch(`${API_URL}/admin/set-role`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actor, telegramUserId, role }),
+  });
+}
+
 export function getTelegramUser(): TgUser {
   const tg = window.Telegram?.WebApp;
   if (tg?.initDataUnsafe?.user) {

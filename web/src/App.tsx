@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Toaster } from "react-hot-toast";
-import { getTelegramUser, getTelegramWebApp, fetchTest, type TgUser, type SubmitResult, type Test } from "./lib/api.ts";
+import { getTelegramUser, getTelegramWebApp, fetchTest, fetchMyRole, type TgUser, type SubmitResult, type Test, type UserRole } from "./lib/api.ts";
 import { useStore } from "./store/index.ts";
 import "./i18n/index.ts";
 
@@ -14,9 +14,10 @@ import Results from "./pages/Results.tsx";
 import History from "./pages/History.tsx";
 import Leaderboard from "./pages/Leaderboard.tsx";
 import Profile from "./pages/Profile.tsx";
+import AdminPanel from "./pages/AdminPanel.tsx";
 
-type Page = "home" | "config" | "quiz" | "results" | "history" | "leaderboard" | "profile";
-type Tab = "home" | "history" | "leaderboard" | "profile";
+type Page = "home" | "config" | "quiz" | "results" | "history" | "leaderboard" | "profile" | "admin";
+type Tab = "home" | "history" | "leaderboard" | "profile" | "admin";
 
 export default function App() {
   const [page, setPage] = useState<Page>("home");
@@ -26,6 +27,7 @@ export default function App() {
   const [resultData, setResultData] = useState<SubmitResult | null>(null);
   const [timePerQuestion, setTimePerQuestion] = useState(30);
   const [authenticated, setAuthenticated] = useState(false);
+  const [role, setRole] = useState<UserRole>("user");
   const user: TgUser = getTelegramUser();
   const store = useStore();
 
@@ -42,6 +44,9 @@ export default function App() {
 
   useEffect(() => {
     store.setUser(user.id.toString(), user.first_name);
+    fetchMyRole(user.id.toString())
+      .then((r) => setRole(r.role))
+      .catch(() => setRole("user"));
   }, []);
 
   useEffect(() => {
@@ -90,7 +95,7 @@ export default function App() {
     return <PhoneGate onAuthenticated={handlePhoneAuth} />;
   }
 
-  const showTabBar = ["home", "history", "leaderboard", "profile"].includes(page);
+  const showTabBar = ["home", "history", "leaderboard", "profile", "admin"].includes(page);
 
   const openTest = async (id: string) => {
     setTestId(id);
@@ -203,10 +208,21 @@ export default function App() {
               <Profile user={user} />
             </motion.div>
           )}
+          {page === "admin" && role === "super_admin" && (
+            <motion.div key="admin" {...pageTransition}>
+              <AdminPanel user={user} />
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
 
-      {showTabBar && <TabBar active={activeTab} onChange={handleTabChange} />}
+      {showTabBar && (
+        <TabBar
+          active={activeTab}
+          onChange={handleTabChange}
+          showAdmin={role === "super_admin"}
+        />
+      )}
 
       <Toaster
         position="top-center"

@@ -187,6 +187,56 @@ export async function toggleBookmark(telegramUserId, questionId) {
   return { bookmarked: true };
 }
 
+/**
+ * Look up a user's role. Returns 'user' if not found.
+ */
+export async function getUserRole(telegramUserId) {
+  if (!telegramUserId) return "user";
+  const { data, error } = await supabase
+    .from("users")
+    .select("role")
+    .eq("telegram_id", telegramUserId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.role || "user";
+}
+
+/**
+ * List every user with their role, name, and quick stats. For the
+ * super-admin user management page.
+ */
+export async function listAllUsersWithStats(limit = 500) {
+  const { data, error } = await supabase
+    .from("users")
+    .select("telegram_id, name, username, role, joined_at, last_active")
+    .order("joined_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data;
+}
+
+const VALID_ROLES = ["user", "admin", "private_admin", "super_admin"];
+
+/**
+ * Change a user's role. Caller must be a super-admin; this function
+ * does not enforce that — the API endpoint guard does.
+ */
+export async function setUserRole(telegramUserId, newRole) {
+  if (!VALID_ROLES.includes(newRole)) {
+    throw new Error(`Invalid role: ${newRole}`);
+  }
+  // Make sure the user exists before we update
+  await ensureUser(telegramUserId);
+  const { data, error } = await supabase
+    .from("users")
+    .update({ role: newRole })
+    .eq("telegram_id", telegramUserId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 async function ensureUser(telegramId) {
   const { data } = await supabase
     .from("users")

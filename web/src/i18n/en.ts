@@ -113,5 +113,6 @@ export default {
     history: "History",
     leaderboard: "Leaderboard",
     profile: "Profile",
+    admin: "Admin",
   },
 };

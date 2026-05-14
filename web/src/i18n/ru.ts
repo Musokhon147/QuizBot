@@ -113,5 +113,6 @@ export default {
     history: "История",
     leaderboard: "Рейтинг",
     profile: "Профиль",
+    admin: "Админ",
   },
 };
