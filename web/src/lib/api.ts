@@ -138,15 +138,15 @@ export interface AdminUser {
 }
 
 export function fetchMyRole(telegramUserId: string): Promise<{ telegramUserId: string; role: UserRole }> {
-  return jsonFetch(`${API_URL}/admin/me?userId=${encodeURIComponent(telegramUserId)}`);
+  return jsonFetch(`${API_URL}/admin?action=me&userId=${encodeURIComponent(telegramUserId)}`);
 }
 
 export function fetchAllAdminUsers(actor: string): Promise<AdminUser[]> {
-  return jsonFetch(`${API_URL}/admin/users?actor=${encodeURIComponent(actor)}`);
+  return jsonFetch(`${API_URL}/admin?action=users&actor=${encodeURIComponent(actor)}`);
 }
 
 export function setUserRoleApi(actor: string, telegramUserId: string, role: UserRole): Promise<AdminUser> {
-  return jsonFetch(`${API_URL}/admin/set-role`, {
+  return jsonFetch(`${API_URL}/admin?action=set-role`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ actor, telegramUserId, role }),
